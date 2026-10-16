@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kai's Budget</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#4f9de0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Budget">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: cards floating on an open sky. Timeline first: money in and out by date, grouped by paycheck, with a running balance. */
+:root {
+  --sky1: #4f9de0; --sky2: #bfe0fa; --cloud: rgba(255, 255, 255, .9);
+  --surface: rgba(255, 255, 255, .95); --sunk: #eef4fa; --line: #d5e2ee;
+  --ink: #10233a; --muted: #516a82; --on-sky: #ffffff;
+  --accent: #1667b8; --accent-soft: #dcecfb; --on-accent: #ffffff;
+  --good: #17834f; --good-soft: #dcf2e5; --bad: #c23b2a; --bad-soft: #fbe1dc; --warn: #a86a00;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --font-body: "Public Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sky1: #0b1a33; --sky2: #1f3d68; --cloud: rgba(170, 195, 230, .16);
+    --surface: rgba(17, 29, 49, .94); --sunk: #1a2a44; --line: #2a3d5c;
+    --ink: #e6eefb; --muted: #93a9c6; --on-sky: #e6eefb;
+    --accent: #6db3f5; --accent-soft: #1c3456; --on-accent: #0b1a33;
+    --good: #5fd197; --good-soft: #173a2a; --bad: #f08572; --bad-soft: #3f211d; --warn: #f0b357; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --sky1: #0b1a33; --sky2: #1f3d68; --cloud: rgba(170, 195, 230, .16);
+  --surface: rgba(17, 29, 49, .94); --sunk: #1a2a44; --line: #2a3d5c;
+  --ink: #e6eefb; --muted: #93a9c6; --on-sky: #e6eefb;
+  --accent: #6db3f5; --accent-soft: #1c3456; --on-accent: #0b1a33;
+  --good: #5fd197; --good-soft: #173a2a; --bad: #f08572; --bad-soft: #3f211d; --warn: #f0b357; color-scheme: dark;
+}
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+* { box-sizing: border-box; }
+body { background: var(--sky1); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; margin: 0; min-height: 100vh; }
+.sky { position: fixed; inset: 0; z-index: -1; background: linear-gradient(180deg, var(--sky1), var(--sky2)); overflow: hidden; }
+.cloud { position: absolute; width: 280px; height: 100px; opacity: .95;
+  background:
+    radial-gradient(circle at 28% 62%, var(--cloud) 0 36px, transparent 37px),
+    radial-gradient(circle at 50% 42%, var(--cloud) 0 50px, transparent 51px),
+    radial-gradient(circle at 72% 60%, var(--cloud) 0 40px, transparent 41px),
+    linear-gradient(var(--cloud), var(--cloud)) center 84% / 66% 34px no-repeat;
+  border-radius: 50px; }
+.c1 { top: 6%; left: -40px; transform: scale(1.2); }
+.c2 { top: 22%; right: -60px; transform: scale(.9); }
+.c3 { top: 48%; left: 8%; transform: scale(.7); }
+.c4 { top: 66%; right: 6%; transform: scale(1.4); }
+.c5 { top: 86%; left: 30%; transform: scale(1); }
+@media (prefers-reduced-motion: no-preference) {
+  .cloud { animation: drift 90s linear infinite alternate; }
+  .c2 { animation-duration: 120s; } .c3 { animation-duration: 75s; } .c4 { animation-duration: 140s; } .c5 { animation-duration: 100s; }
+  @keyframes drift { from { translate: -30px 0; } to { translate: 60px 0; } }
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--sky1); }
+.wrap { max-width: 720px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--sky1) 82%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.top .wrap { padding-block: 14px 0; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 24px; letter-spacing: -0.01em; margin: 0; color: var(--on-sky); }
+nav.tabs { display: flex; gap: 4px; margin-top: 8px; }
+nav.tabs button { flex: 1; background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 8px; font: 600 14px var(--font-body); color: var(--on-sky); opacity: .75; cursor: pointer; }
+nav.tabs button[aria-selected="true"] { opacity: 1; border-bottom-color: var(--on-sky); }
+button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+main { padding-block: 20px 96px; }
+.view { display: grid; gap: 18px; }
+.card { background: var(--surface); border-radius: 14px; box-shadow: 0 6px 24px rgba(16, 35, 58, .12); overflow: hidden; }
+.pad { padding: 16px; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.pos { color: var(--good); } .neg { color: var(--bad); } .muted { color: var(--muted); }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+
+.balance { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.balance .big { font-family: var(--font-display); font-weight: 700; font-size: clamp(36px, 8vw, 52px); line-height: 1.05; letter-spacing: -0.02em; }
+.alert { padding: 12px 16px; border-top: 1px solid var(--line); font-size: 14px; display: flex; gap: 10px; align-items: baseline; }
+.alert.bad { background: var(--bad-soft); }
+.alert.ok { background: var(--good-soft); }
+.alert b { font-weight: 600; }
+
+.btn { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 600 14px var(--font-body); padding: 9px 14px; border-radius: 9px; cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn.danger { color: var(--bad); border-color: var(--bad); background: transparent; }
+.btn.small { padding: 6px 10px; font-size: 13px; }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--accent); }
+
+.cardhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 16px 10px; }
+.monthnav { display: flex; align-items: center; gap: 6px; }
+.monthnav .label { font-family: var(--font-display); font-weight: 600; font-size: 18px; min-width: 9ch; text-align: center; }
+
+.seg { border-top: 1px solid var(--line); }
+.seghead { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 10px 16px; background: var(--sunk); font-size: 13px; }
+.seghead b { font-weight: 600; color: var(--ink); }
+.item { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--line); }
+.item:first-child { border-top: 0; }
+.date { text-align: center; line-height: 1.1; }
+.date .d { font-family: var(--font-display); font-weight: 700; font-size: 20px; display: block; }
+.date .w { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.what { min-width: 0; }
+.what .n { font-weight: 600; overflow-wrap: anywhere; }
+.what .s { font-size: 12px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.amt { text-align: right; display: grid; gap: 2px; justify-items: end; }
+.amt .run { font-size: 12px; color: var(--muted); }
+.amt .run.neg { color: var(--bad); font-weight: 600; }
+.item.done .n, .item.done .amt > .num:first-child { text-decoration: line-through; color: var(--muted); }
+.item.settled { opacity: .55; }
+.item.today { box-shadow: inset 3px 0 0 var(--accent); }
+.chip { font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 1px 7px; border-radius: 999px; background: var(--sunk); color: var(--muted); }
+.chip.income { background: var(--good-soft); color: var(--good); }
+.chip.dt { background: var(--bad-soft); color: var(--bad); }
+.chip.late { background: var(--warn); color: var(--surface); }
+.check { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); background: transparent; cursor: pointer; display: grid; place-items: center; color: var(--on-accent); font-size: 15px; padding: 0; }
+.check.on { background: var(--good); border-color: var(--good); }
+.rowr { display: flex; gap: 10px; align-items: center; }
+
+.list .row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 11px 16px; border-top: 1px solid var(--line); cursor: pointer; }
+.list .row:first-child { border-top: 0; }
+.list .row:hover { background: var(--sunk); }
+.row .l { min-width: 0; }
+.row .l small { display: block; font-size: 12px; color: var(--muted); }
+.empty { padding: 18px 16px; color: var(--muted); font-size: 14px; }
+.debt { padding: 14px 16px; border-top: 1px solid var(--line); display: grid; gap: 8px; cursor: pointer; }
+.debt:first-child { border-top: 0; }
+.debt:hover { background: var(--sunk); }
+.debt .h { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.debt .meta { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.bar { height: 6px; background: var(--sunk); border-radius: 3px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); }
+.totalrow { display: flex; justify-content: space-between; padding: 12px 16px; background: var(--sunk); font-weight: 600; }
+
+.sheet-bg { position: fixed; inset: 0; background: rgba(8, 20, 38, .45); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+.sheet { background: var(--surface); width: 100%; max-width: 520px; border-radius: 16px 16px 0 0; padding: 20px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 14px; max-height: 92vh; overflow-y: auto; }
+@media (min-width: 600px) { .sheet-bg { align-items: center; } .sheet { border-radius: 16px; padding: 24px; } }
+.sheet h3 { font-family: var(--font-display); font-weight: 600; font-size: 20px; margin: 0; }
+.field { display: grid; gap: 4px; }
+.field label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.field input, .field select { font: 16px var(--font-body); padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--sunk); color: var(--ink); width: 100%; }
+.field .hint { font-size: 12px; color: var(--muted); }
+.sheet .btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.sheet .btns .right { display: flex; gap: 10px; margin-left: auto; }
+.msg { font-size: 14px; color: var(--bad); }
+/* calendar page */
+.calpage { position: relative; padding-top: 22px; overflow: visible; }
+.rings { position: absolute; top: -10px; left: 0; right: 0; display: flex; justify-content: space-around; padding: 0 18%; pointer-events: none; }
+.rings i { width: 12px; height: 30px; border-radius: 6px; background: linear-gradient(90deg, #8a96a3, #e9eef3 45%, #7d8894); box-shadow: 0 2px 3px rgba(0,0,0,.25); }
+.calhead { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; padding: 8px 16px 12px; border-bottom: 2px solid var(--ink); margin: 0 12px; }
+.calhead .mname { font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 7vw, 44px); line-height: 1; letter-spacing: -0.02em; }
+.calhead .yr { font-family: var(--font-num); font-size: 15px; color: var(--muted); margin-left: 6px; }
+.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin: 0 12px; }
+.wd { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); text-align: center; padding: 8px 0 6px; }
+.wd.we { color: var(--accent); }
+.cd { appearance: none; background: transparent; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); min-height: 74px; padding: 4px 3px 4px; text-align: left; display: flex; flex-direction: column; gap: 1px; cursor: pointer; color: var(--ink); font: inherit; min-width: 0; overflow: hidden; }
+.grid .cd:nth-child(7n + 1) { border-left: 1px solid var(--line); }
+.cd.blank { cursor: default; background: repeating-linear-gradient(135deg, transparent 0 6px, var(--sunk) 6px 7px); }
+.cd.we:not(.blank) { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+.cd.neg { background: var(--bad-soft); }
+.cd.past .dn { color: var(--muted); }
+.cd .dn { font-family: var(--font-display); font-weight: 600; font-size: 15px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; }
+.cd.today .dn { background: var(--accent); color: var(--on-accent); }
+.cd.sel { box-shadow: inset 0 0 0 2px var(--accent); }
+.cd .in, .cd .out, .cd .eb { font-family: var(--font-num); font-size: 10.5px; line-height: 1.25; white-space: nowrap; }
+.cd .in { color: var(--good); font-weight: 500; }
+.cd .out { color: var(--bad); }
+.cd .eb { margin-top: auto; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 2px; }
+.cd .eb.neg { color: var(--bad); font-weight: 600; }
+.cd .nm { display: none; font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (min-width: 640px) { .cd { min-height: 96px; padding: 6px; } .cd .nm { display: block; } .cd .in, .cd .out, .cd .eb { font-size: 11.5px; } }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; padding: 10px 16px 14px; font-size: 12px; color: var(--muted); }
+.legend .pos, .legend .neg { font-family: var(--font-num); }
+.dayhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; border-top: 2px solid var(--ink); margin: 0 12px; }
+.dayhead strong { font-family: var(--font-display); font-size: 18px; }
+.chart { padding: 8px 12px 12px; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--muted); font: 11px var(--font-num); }
+.big2 { font-family: var(--font-display); font-weight: 700; font-size: 34px; line-height: 1.1; letter-spacing: -0.02em; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 9px; font-size: 14px; z-index: 30; max-width: calc(100% - 32px); }
+</style>
+</head>
+<body>
+
+<div class="sky" aria-hidden="true"><div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div><div class="cloud c4"></div><div class="cloud c5"></div></div>
+
+<header class="top">
+  <div class="wrap">
+    <p class="brand">Kai's Budget</p>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="timeline" aria-selected="true">Timeline</button>
+      <button role="tab" data-tab="debts" aria-selected="false">Debts</button>
+      <button role="tab" data-tab="setup" aria-selected="false">Recurring</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="status" class="card empty">Loading your budget. Your paychecks and due dates will show up here.</div>
+
+  <section class="view" id="view-timeline" hidden>
+    <div class="card">
+      <div class="pad balance">
+        <div><h2>In checking now</h2><div class="big num" id="balNow">$0</div><p class="note" id="balAsOf"></p></div>
+        <button class="btn" id="btnBal">Update balance</button>
+      </div>
+      <div id="lowAlert"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardhead"><h2>Next 7 days</h2><button class="btn small primary" id="btnAdd1">Add item</button></div>
+      <div id="next7"></div>
+    </div>
+
+    <div class="card calpage">
+      <div class="rings" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="calhead">
+        <div><span class="mname" id="mName"></span><span class="yr" id="mYear"></span></div>
+        <div class="monthnav"><button class="btn small" id="prevM" aria-label="Previous month">‹</button><button class="btn small ghost" id="thisM">Today</button><button class="btn small" id="nextM" aria-label="Next month">›</button></div>
+      </div>
+      <div class="grid" id="calGrid"></div>
+      <div class="legend"><span><span class="pos">+$</span> money in</span><span><span class="neg">−$</span> going out</span><span>Bottom number: balance at end of day</span></div>
+      <div class="dayhead"><strong id="dayTitle"></strong><button class="btn small primary" id="btnAddDay">Add to this day</button></div>
+      <div id="dayItems"></div>
+      <div style="height:8px"></div>
+    </div>
+    <p class="note" style="color:var(--on-sky)">Tap a day to see what's due. Tap the circle when a paycheck lands or a bill is paid, and your balance updates on its own.</p>
+  </section>
+
+  <section class="view" id="view-debts" hidden>
+    <div class="card">
+      <div class="pad"><h2>Debt-free by</h2><div class="big2" id="freeDate">…</div><p class="note" id="freeSub"></p></div>
+      <div class="chart" id="debtChart"></div>
+    </div>
+    <div class="card">
+      <div class="cardhead"><h2>Debts</h2><button class="btn small primary" id="btnAddDebt">Add debt</button></div>
+      <div id="debtList"></div>
+    </div>
+    <p class="note" style="color:var(--on-sky)">Each debt's minimum shows up on your timeline on its due date. Marking it paid lowers the balance here.</p>
+  </section>
+
+  <section class="view" id="view-setup" hidden>
+    <div class="card"><div class="cardhead"><h2>Paychecks</h2><button class="btn small" data-add="income">Add paycheck</button></div><div class="list" id="incList"></div></div>
+    <div class="card"><div class="cardhead"><h2>Bills and spending</h2><button class="btn small" data-add="bill">Add bill</button></div><div class="list" id="billList"></div></div>
+    <p class="note" style="color:var(--on-sky)">Tap any row to change the amount, date or how often it repeats. Debts are managed in the Debts tab.</p>
+    <div class="card pad" style="display:grid;gap:10px">
+      <h2>Backup</h2>
+      <p class="note">Your budget is saved on this phone only. Save a backup file now and then, and use it to restore on a new phone.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" id="btnExport">Save backup file</button><button class="btn" id="btnImport">Restore from backup</button><input type="file" id="fileImport" accept="application/json,.json" hidden></div>
+    </div>
+  </section>
+</main>
+
+<div id="sheetHost"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const S = { db: null, settings: null, items: [], marks: {}, loaded: { s: false, i: false, m: false }, tab: "timeline", view: null };
+  const DAY = 864e5;
+  const toDays = (s) => { const [y, m, d] = s.split("-").map(Number); return Math.round(Date.UTC(y, m - 1, d) / DAY); };
+  const fromDays = (n) => { const d = new Date(n * DAY); return d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, "0") + "-" + String(d.getUTCDate()).padStart(2, "0"); };
+  const nowD = new Date();
+  const TODAY = Math.round(Date.UTC(nowD.getFullYear(), nowD.getMonth(), nowD.getDate()) / DAY);
+  const ym = (y, m) => y + "-" + String(m + 1).padStart(2, "0");
+  S.view = { y: nowD.getFullYear(), m: nowD.getMonth() };
+  const monthStart = (y, m) => Math.round(Date.UTC(y, m, 1) / DAY);
+  const monthEnd = (y, m) => Math.round(Date.UTC(y, m + 1, 0) / DAY);
+  const dim = (y, m) => new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  const dow = (n) => new Date(n * DAY).toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" });
+  const md = (n) => new Date(n * DAY).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const uid = () => Math.random().toString(36).slice(2, 10);
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const f0 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  const f2 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const m0 = (n) => (n < 0 ? "−" : "") + f0.format(Math.abs(Math.round(n)));
+  const m2 = (n) => (n < 0 ? "−" : "") + f2.format(Math.abs(n));
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const FREQ = { once: "One time", weekly: "Every week", biweekly: "Every 2 weeks", semimonthly: "Twice a month", monthly: "Every month" };
+  const ord = (n) => n + (["th", "st", "nd", "rd"][(n % 100 - 20) % 10] || ["th", "st", "nd", "rd"][n % 100] || "th");
+
+  // ---------- writes ----------
+  let queue = Promise.resolve();
+  function enqueue(fn, ok) {
+    queue = queue.then(fn).then(() => { if (ok) toast(ok); }).catch((e) => {
+      const c = e && e.code;
+      toast(c === "invalid_argument" ? "Only the owner can change this budget." : c === "quota_exceeded" ? "Storage is full. Delete some old items." : "Couldn't save. Check your connection and try again.");
+    });
+    return queue;
+  }
+  let tt; function toast(t) { const el = $("toast"); el.textContent = t; el.hidden = false; clearTimeout(tt); tt = setTimeout(() => { el.hidden = true; }, 2400); }
+
+  // ---------- schedule ----------
+  function occurrences(item, from, to) {
+    const out = [];
+    if (!item.date) return out;
+    const a = toDays(item.date);
+    const push = (d) => { if (d >= from && d <= to) out.push(d); };
+    if (item.freq === "once") push(a);
+    else if (item.freq === "weekly" || item.freq === "biweekly") {
+      const step = item.freq === "weekly" ? 7 : 14;
+      let d = a; if (d < from) d += Math.ceil((from - d) / step) * step;
+      for (; d <= to; d += step) if (d >= a) push(d);
+    } else {
+      const days = [Number(item.date.slice(8, 10))];
+      if (item.freq === "semimonthly") days.push(Number(item.day2) || 15);
+      const s = new Date(from * DAY); let y = s.getUTCFullYear(), m = s.getUTCMonth();
+      while (monthStart(y, m) <= to) {
+        days.forEach((dd) => { const d = monthStart(y, m) + Math.min(dd, dim(y, m)) - 1; if (d >= a) push(d); });
+        m++; if (m > 11) { m = 0; y++; }
+      }
+    }
+    return out;
+  }
+  const keyOf = (id, d) => id + "@" + fromDays(d);
+  const isDone = (id, d) => !!(S.marks[fromDays(d).slice(0, 7)] || {})[keyOf(id, d)];
+  const sign = (it) => (it.kind === "income" ? 1 : -1);
+
+  function allOcc(from, to) {
+    const list = [];
+    S.items.forEach((it) => occurrences(it, from, to).forEach((d) => list.push({ it, d, key: keyOf(it.id, d), done: isDone(it.id, d) })));
+    list.sort((x, y) => x.d - y.d || (sign(y.it) - sign(x.it)) || x.it.name.localeCompare(y.it.name));
+    return list;
+  }
+
+  // Projection: start from current balance, apply every unpaid item dated on or after the balance date.
+  function project(until) {
+    const st = S.settings || {};
+    const from = st.asOf ? toDays(st.asOf) : TODAY;
+    let bal = Number(st.balance) || 0;
+    const run = {};
+    allOcc(from, until).forEach((o) => { if (!o.done) { bal += sign(o.it) * o.it.amount; run[o.key] = bal; } });
+    return { run, from, end: bal };
+  }
+
+  // ---------- render ----------
+  function render() {
+    if (!S.loaded.s || !S.loaded.i || !S.loaded.m) return;
+    $("status").hidden = true;
+    showTab(S.tab);
+    renderTimeline(); renderDebts(); renderSetup();
+  }
+
+  function itemRow(o, run, from, showCheck) {
+    const it = o.it;
+    const settled = o.d < from && !o.done;
+    const late = !o.done && !settled && o.d < TODAY;
+    const r = run[o.key];
+    const chip = it.kind === "income" ? '<span class="chip income">Pay</span>' : it.kind === "debt" ? '<span class="chip dt">Debt</span>' : '<span class="chip">Bill</span>';
+    return '<div class="item' + (o.done ? " done" : "") + (settled ? " settled" : "") + (o.d === TODAY ? " today" : "") + '">' +
+      '<div class="date"><span class="d">' + new Date(o.d * DAY).getUTCDate() + '</span><span class="w">' + dow(o.d) + "</span></div>" +
+      '<div class="what" data-edit="' + esc(it.id) + '" tabindex="0" role="button" style="cursor:pointer"><div class="n">' + esc(it.name) + '</div><div class="s">' + chip + (late ? '<span class="chip late">Past due?</span>' : "") + (settled ? "<span>Before your balance date</span>" : "") + "</div></div>" +
+      '<div class="rowr"><div class="amt"><span class="num ' + (it.kind === "income" ? "pos" : "") + '">' + (it.kind === "income" ? "+" : "−") + m2(it.amount) + "</span>" +
+      (r !== undefined ? '<span class="run num' + (r < 0 ? " neg" : "") + '">→ ' + m0(r) + "</span>" : "") + "</div>" +
+      (showCheck && !settled ? '<button class="check' + (o.done ? " on" : "") + '" data-mark="' + esc(o.key) + '" aria-label="' + (o.done ? "Mark not done" : it.kind === "income" ? "Mark received" : "Mark paid") + '">' + (o.done ? "✓" : "") + "</button>" : "") +
+      "</div></div>";
+  }
+
+  function renderTimeline() {
+    const st = S.settings || {};
+    const hasBal = st.balance !== null && st.balance !== undefined;
+    $("balNow").textContent = hasBal ? m2(Number(st.balance)) : "Not set";
+    $("balAsOf").textContent = hasBal ? "Updated " + md(toDays(st.asOf)) : "Enter what's in your checking account today to start the projection.";
+    const { y, m } = S.view;
+    const ms = monthStart(y, m), me = monthEnd(y, m);
+    const proj = project(Math.max(me, TODAY + 7));
+    // low point in remaining part of the viewed month
+    const occ = allOcc(ms, me);
+    let low = null;
+    occ.forEach((o) => { const r = proj.run[o.key]; if (r !== undefined && (low === null || r < low.v)) low = { v: r, d: o.d, name: o.it.name }; });
+    const la = $("lowAlert");
+    if (!hasBal) la.innerHTML = "";
+    else if (low && low.v < 0) la.innerHTML = '<div class="alert bad"><span>⚠</span><span>You\'ll be <b>short ' + m0(-low.v) + "</b> on <b>" + md(low.d) + "</b> when " + esc(low.name) + " comes out. Move that bill, pick up a shift, or hold off on extra spending before then.</span></div>";
+    else if (low) la.innerHTML = '<div class="alert ok"><span>✓</span><span>Lowest point in ' + new Date(ms * DAY).toLocaleDateString("en-US", { month: "long", timeZone: "UTC" }) + ": <b>" + m0(low.v) + "</b> on " + md(low.d) + ". You stay above zero.</span></div>";
+    else la.innerHTML = "";
+
+    // next 7 days
+    const n7 = allOcc(TODAY, TODAY + 7).filter((o) => !o.done);
+    const n7in = n7.filter((o) => o.it.kind === "income").reduce((a, o) => a + o.it.amount, 0);
+    const n7out = n7.filter((o) => o.it.kind !== "income").reduce((a, o) => a + o.it.amount, 0);
+    $("next7").innerHTML = n7.length ? n7.map((o) => itemRow(o, proj.run, proj.from, true)).join("") + '<div class="totalrow"><span>Coming in <span class="pos num">+' + m0(n7in) + '</span> · Going out <span class="neg num">−' + m0(n7out) + '</span></span></div>' : '<div class="empty">Nothing due in the next 7 days.</div>';
+
+    // calendar page
+    const mdate = new Date(ms * DAY);
+    $("mName").textContent = mdate.toLocaleDateString("en-US", { month: "long", timeZone: "UTC" });
+    $("mYear").textContent = mdate.getUTCFullYear();
+    if (S.sel === undefined || S.sel < ms || S.sel > me) S.sel = TODAY >= ms && TODAY <= me ? TODAY : ms;
+    const byDay = {};
+    occ.forEach((o) => { (byDay[o.d] = byDay[o.d] || []).push(o); });
+    const kfmt = (n) => n >= 1000 ? "$" + (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "") + "k" : "$" + Math.round(n);
+    let html = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((w, i) => '<div class="wd' + (i === 0 || i === 6 ? " we" : "") + '">' + w + "</div>").join("");
+    const lead = mdate.getUTCDay();
+    for (let i = 0; i < lead; i++) html += '<div class="cd blank"></div>';
+    for (let d = ms; d <= me; d++) {
+      const list = byDay[d] || [];
+      const inn = list.filter((o) => o.it.kind === "income").reduce((a, o) => a + o.it.amount, 0);
+      const out = list.filter((o) => o.it.kind !== "income").reduce((a, o) => a + o.it.amount, 0);
+      const runs = list.map((o) => proj.run[o.key]).filter((v) => v !== undefined);
+      const end = runs.length ? runs[runs.length - 1] : undefined;
+      const wd = new Date(d * DAY).getUTCDay();
+      const cls = "cd" + (wd === 0 || wd === 6 ? " we" : "") + (d === TODAY ? " today" : "") + (d < TODAY ? " past" : "") + (d === S.sel ? " sel" : "") + (end !== undefined && end < 0 ? " neg" : "");
+      html += '<button class="' + cls + '" data-day="' + d + '" aria-label="' + md(d) + (list.length ? ", " + list.length + " items" : "") + '"><span class="dn">' + new Date(d * DAY).getUTCDate() + "</span>" +
+        list.slice(0, 2).map((o) => '<span class="nm">' + esc(o.it.name) + "</span>").join("") +
+        (inn ? '<span class="in">+' + kfmt(inn) + "</span>" : "") + (out ? '<span class="out">−' + kfmt(out) + "</span>" : "") +
+        (end !== undefined ? '<span class="eb' + (end < 0 ? " neg" : "") + '">' + (end < 0 ? "−" : "") + kfmt(Math.abs(end)) + "</span>" : "") + "</button>";
+    }
+    const tail = (7 - ((lead + (me - ms + 1)) % 7)) % 7;
+    for (let i = 0; i < tail; i++) html += '<div class="cd blank"></div>';
+    $("calGrid").innerHTML = html;
+    document.querySelectorAll("[data-day]").forEach((b) => { b.onclick = () => { S.sel = Number(b.dataset.day); renderTimeline(); }; });
+    $("dayTitle").textContent = new Date(S.sel * DAY).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" });
+    const dl = byDay[S.sel] || [];
+    $("dayItems").innerHTML = dl.length ? dl.map((o) => itemRow(o, proj.run, proj.from, true)).join("") : '<div class="empty">Nothing scheduled this day.</div>';
+    bindRows();
+  }
+
+  function bindRows() {
+    document.querySelectorAll("[data-mark]").forEach((b) => { b.onclick = () => toggleMark(b.dataset.mark); });
+    document.querySelectorAll("[data-edit]").forEach((el) => {
+      const open = () => { const it = S.items.find((x) => x.id === el.dataset.edit); if (it) editItem(it); };
+      el.onclick = open; el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } };
+    });
+  }
+
+  function schedText(it) {
+    if (!it.date) return "";
+    const d = toDays(it.date);
+    if (it.freq === "once") return md(d);
+    if (it.freq === "weekly") return "Every " + dow(d);
+    if (it.freq === "biweekly") return "Every other " + dow(d) + ", next from " + md(d);
+    if (it.freq === "semimonthly") return "The " + ord(Number(it.date.slice(8, 10))) + " and " + ord(Number(it.day2) || 15);
+    return "Due the " + ord(Number(it.date.slice(8, 10)));
+  }
+  const monthly = (it) => it.freq === "weekly" ? it.amount * 52 / 12 : it.freq === "biweekly" ? it.amount * 26 / 12 : it.freq === "semimonthly" ? it.amount * 2 : it.freq === "monthly" ? it.amount : 0;
+
+  function renderSetup() {
+    const inc = S.items.filter((i) => i.kind === "income");
+    const bills = S.items.filter((i) => i.kind === "bill");
+    const row = (it) => '<div class="row" data-edit="' + esc(it.id) + '" tabindex="0" role="button"><div class="l">' + esc(it.name) + "<small>" + esc(FREQ[it.freq] || "") + " · " + esc(schedText(it)) + '</small></div><div class="num ' + (it.kind === "income" ? "pos" : "") + '">' + (it.kind === "income" ? "+" : "−") + m2(it.amount) + "</div></div>";
+    const tot = (arr, cls, s) => arr.length ? '<div class="totalrow"><span>About per month</span><span class="num ' + cls + '">' + s + m0(arr.reduce((a, i) => a + monthly(i), 0)) + "</span></div>" : "";
+    $("incList").innerHTML = inc.length ? inc.map(row).join("") + tot(inc, "pos", "+") : '<div class="empty">Add each job\'s paycheck and how often it lands.</div>';
+    $("billList").innerHTML = bills.length ? bills.map(row).join("") + tot(bills, "", "−") : '<div class="empty">Add rent, utilities, subscriptions and regular spending like groceries.</div>';
+    bindRows();
+  }
+
+  function renderDebts() {
+    const ds = S.items.filter((i) => i.kind === "debt").sort((a, b) => (Number(b.apr) || 0) - (Number(a.apr) || 0));
+    const total = ds.reduce((a, d) => a + (Number(d.balance) || 0), 0);
+    const mins = ds.reduce((a, d) => a + d.amount, 0);
+    renderDebtPlan(ds);
+    $("debtList").innerHTML = ds.length ? ds.map((d) => {
+      const bal = Number(d.balance) || 0, start = Number(d.startBalance) || bal || 1;
+      const pct = Math.max(0, Math.min(100, (1 - bal / start) * 100));
+      const next = allOcc(TODAY, TODAY + 62).find((o) => o.it.id === d.id && !o.done);
+      return '<div class="debt" data-edit="' + esc(d.id) + '" tabindex="0" role="button"><div class="h"><strong>' + esc(d.name) + '</strong><span class="num neg">' + m2(bal) + '</span></div><div class="bar"><i style="width:' + pct.toFixed(1) + '%"></i></div><div class="meta"><span>' + m0(d.amount) + " min</span><span>" + esc(schedText(d)) + "</span>" + (d.apr ? "<span>" + d.apr + "% APR</span>" : "") + (next ? "<span>Next: " + md(next.d) + "</span>" : "") + "</div></div>";
+    }).join("") + '<div class="totalrow"><span>Total owed · ' + m0(mins) + '/mo in minimums</span><span class="num neg">' + m0(total) + "</span></div>" : '<div class="empty">No debts added.</div>';
+    bindRows();
+  }
+
+  // ---------- debt payoff projection (avalanche: highest APR gets the extra) ----------
+  const addMonths = (k) => { const d = new Date(nowD.getFullYear(), nowD.getMonth() + k, 1); return d.toLocaleDateString("en-US", { month: "short", year: "numeric" }); };
+  function renderDebtPlan(ds) {
+    const live = ds.filter((d) => (Number(d.balance) || 0) > 0);
+    const plan = live.filter((d) => d.inPlan !== false).map((d) => ({ b: Number(d.balance), r: (Number(d.apr) || 0) / 1200, min: d.amount })).sort((a, b) => b.r - a.r);
+    const inc = S.items.filter((i) => i.kind === "income").reduce((a, i) => a + monthly(i), 0);
+    const bills = S.items.filter((i) => i.kind === "bill").reduce((a, i) => a + monthly(i), 0);
+    const allMins = live.reduce((a, d) => a + monthly(d), 0);
+    const extra = Math.max(0, inc - bills - allMins);
+    const budget = plan.reduce((a, d) => a + d.min, 0) + extra;
+    const series = [plan.reduce((a, d) => a + d.b, 0)];
+    let m = 0, interest = 0;
+    while (series[m] > 0.5 && m < 600) {
+      m++; plan.forEach((d) => { if (d.b > 0) { const i = d.b * d.r; interest += i; d.b += i; } });
+      let pool = budget;
+      plan.forEach((d) => { if (d.b > 0) { const p = Math.min(d.min, d.b, Math.max(pool, 0)); d.b -= p; pool -= p; } });
+      for (const d of plan) { if (pool <= 0) break; if (d.b > 0) { const p = Math.min(pool, d.b); d.b -= p; pool -= p; } }
+      series.push(plan.reduce((a, d) => a + Math.max(d.b, 0), 0));
+    }
+    const el = $("debtChart");
+    if (!plan.length) { $("freeDate").textContent = "Done"; $("freeSub").textContent = "No debts in the payoff plan."; el.innerHTML = ""; return; }
+    if (m >= 600) { $("freeDate").textContent = "Not on track"; $("freeSub").textContent = "Your payments don't cover the interest yet. More income or fewer bills would fix this."; el.innerHTML = ""; return; }
+    $("freeDate").textContent = addMonths(m);
+    $("freeSub").innerHTML = m + " months · " + m0(series[0]) + " to pay off · about " + m0(interest) + " in interest · " + m0(extra) + "/mo extra on top of minimums" + (live.some((d) => d.inPlan === false) ? ". Student loans stay on their regular schedule." : "");
+    const W = 640, H = 220, L = 52, R = 14, T = 12, B = 28, n = series.length - 1;
+    const top = Math.ceil(series[0] / 10000) * 10000 || 10000;
+    const x = (i) => L + (i / n) * (W - L - R), y = (v) => T + (1 - v / top) * (H - T - B);
+    const line = series.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join(" ");
+    let g = "";
+    [0, 0.5, 1].forEach((f) => { const v = top * f; g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--line)"/><text x="' + (L - 8) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + (v ? "$" + Math.round(v / 1000) + "k" : "$0") + "</text>"; });
+    [0, Math.round(n / 2), n].forEach((i, k) => { g += '<text x="' + x(i) + '" y="' + (H - 8) + '" text-anchor="' + ["start", "middle", "end"][k] + '">' + (i ? addMonths(i) : "Now") + "</text>"; });
+    el.innerHTML = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Total debt falling to zero by ' + addMonths(m) + '">' + g +
+      '<path d="' + line + " L" + x(n) + " " + y(0) + " L" + x(0) + " " + y(0) + ' Z" fill="var(--accent-soft)"/>' +
+      '<path d="' + line + '" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>' +
+      '<circle cx="' + x(0) + '" cy="' + y(series[0]) + '" r="4" fill="var(--accent)"/><circle cx="' + x(n) + '" cy="' + y(0) + '" r="4" fill="var(--good)"/>' +
+      '<text x="' + (x(0) + 8) + '" y="' + (y(series[0]) + 14) + '" text-anchor="start" style="fill:var(--ink)">' + m0(series[0]) + "</text></svg>";
+  }
+
+  // ---------- tabs ----------
+  function showTab(t) {
+    S.tab = t;
+    document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
+    ["timeline", "debts", "setup"].forEach((x) => { $("view-" + x).hidden = x !== t; });
+    try { localStorage.setItem("kb2-tab", t); } catch (e) {}
+  }
+  document.querySelectorAll("nav.tabs button").forEach((b) => { b.onclick = () => { showTab(b.dataset.tab); render(); }; });
+  try { const t = (location.hash || "").slice(1) || localStorage.getItem("kb2-tab"); if (["timeline", "debts", "setup"].includes(t)) S.tab = t; } catch (e) {}
+  $("prevM").onclick = () => { let { y, m } = S.view; m--; if (m < 0) { m = 11; y--; } S.view = { y, m }; S.sel = undefined; renderTimeline(); };
+  $("nextM").onclick = () => { let { y, m } = S.view; m++; if (m > 11) { m = 0; y++; } S.view = { y, m }; S.sel = undefined; renderTimeline(); };
+  $("thisM").onclick = () => { S.view = { y: nowD.getFullYear(), m: nowD.getMonth() }; S.sel = TODAY; renderTimeline(); };
+  $("btnAddDay").onclick = () => openSheet({
+    title: "Add to " + md(S.sel), fields: [{ id: "k", label: "Type", type: "select", value: "bill", options: [{ value: "income", label: "Paycheck or money coming in" }, { value: "bill", label: "Bill or spending" }, { value: "debt", label: "Debt payment" }] }],
+    save: "Next", onSave: (v) => setTimeout(() => editItem(null, v.k, fromDays(S.sel)), 0),
+  });
+
+  // ---------- sheet ----------
+  function openSheet(o) {
+    const host = $("sheetHost");
+    host.innerHTML = '<div class="sheet-bg" id="sbg"><form class="sheet" id="sform" novalidate><h3>' + esc(o.title) + "</h3>" + o.fields.map((f) => {
+      const inp = f.type === "select" ? '<select id="f-' + f.id + '">' + f.options.map((op) => '<option value="' + esc(op.value) + '"' + (op.value === f.value ? " selected" : "") + ">" + esc(op.label) + "</option>").join("") + "</select>"
+        : '<input id="f-' + f.id + '" type="' + (f.type || "text") + '"' + (f.type === "number" ? ' inputmode="decimal" step="' + (f.step || "0.01") + '"' + (f.allowNeg ? "" : ' min="0"') : "") + ' value="' + esc(f.value == null ? "" : f.value) + '"' + (f.ph ? ' placeholder="' + esc(f.ph) + '"' : "") + ">";
+      return '<div class="field" id="w-' + f.id + '"><label for="f-' + f.id + '">' + esc(f.label) + "</label>" + inp + (f.hint ? '<div class="hint">' + esc(f.hint) + "</div>" : "") + "</div>";
+    }).join("") + '<div class="msg" id="smsg" hidden></div><div class="btns">' + (o.onDelete ? '<button type="button" class="btn danger" id="sdel">Delete</button>' : "") + '<div class="right"><button type="button" class="btn" id="scancel">Cancel</button><button type="submit" class="btn primary">' + esc(o.save || "Save") + "</button></div></div></form></div>";
+    const close = () => { host.innerHTML = ""; document.removeEventListener("keydown", onKey); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", onKey);
+    $("scancel").onclick = close;
+    $("sbg").onclick = (e) => { if (e.target.id === "sbg") close(); };
+    const vis = () => o.fields.forEach((f) => { if (f.showIf) $("w-" + f.id).hidden = !f.showIf((id) => $("f-" + id).value); });
+    o.fields.forEach((f) => { if (f.type === "select") $("f-" + f.id).addEventListener("change", vis); });
+    vis();
+    let armed = false;
+    if (o.onDelete) $("sdel").onclick = () => { if (!armed) { armed = true; $("sdel").textContent = "Tap again to delete"; return; } close(); o.onDelete(); };
+    $("sform").onsubmit = (e) => {
+      e.preventDefault();
+      const v = {}, err = (t) => { const el = $("smsg"); el.hidden = false; el.textContent = t; };
+      for (const f of o.fields) {
+        if ($("w-" + f.id).hidden) continue;
+        const raw = $("f-" + f.id).value.trim();
+        if (f.type === "number") { const n = Number(raw); if (raw === "" || !isFinite(n) || (!f.allowNeg && n < 0)) return err(f.label + " needs a number" + (f.allowNeg ? "." : " of 0 or more.")); v[f.id] = r2(n); }
+        else { if (f.required && !raw) return err(f.label + " can't be empty."); v[f.id] = raw; }
+      }
+      close(); o.onSave(v);
+    };
+    const first = host.querySelector("input, select"); if (first) first.focus();
+  }
+
+  function editItem(it, kindForNew, dateForNew) {
+    const kind = it ? it.kind : kindForNew;
+    const noun = kind === "income" ? "paycheck" : kind === "debt" ? "debt" : "bill";
+    const fields = [
+      { id: "name", label: kind === "income" ? "Job" : "Name", value: it ? it.name : "", required: true, ph: kind === "income" ? "Night audit" : kind === "debt" ? "Chase card" : "Rent" },
+      { id: "amount", label: kind === "income" ? "Take-home per paycheck" : kind === "debt" ? "Minimum payment" : "Amount", type: "number", value: it ? it.amount : "" },
+      { id: "freq", label: "How often", type: "select", value: it ? it.freq : (kind === "income" ? "biweekly" : "monthly"), options: Object.keys(FREQ).map((k) => ({ value: k, label: FREQ[k] })) },
+      { id: "date", label: "Date", type: "date", value: it ? it.date : (dateForNew || fromDays(TODAY)), required: true, hint: "For monthly items, the day of the month it's due. For weekly or every 2 weeks, any date it lands." },
+      { id: "day2", label: "Second day of the month", type: "number", step: "1", value: it && it.day2 ? it.day2 : 15, showIf: (g) => g("freq") === "semimonthly" },
+    ];
+    if (kind === "debt") fields.push(
+      { id: "balance", label: "Balance owed", type: "number", value: it ? it.balance : "" },
+      { id: "apr", label: "APR (%)", type: "number", value: it && it.apr != null ? it.apr : 0 },
+      { id: "plan", label: "Extra payments", type: "select", value: it && it.inPlan === false ? "no" : "yes", options: [{ value: "yes", label: "Include in payoff plan" }, { value: "no", label: "Minimum only (like student loans)" }] });
+    openSheet({
+      title: (it ? "Edit " : "Add ") + noun, fields,
+      onSave: (v) => {
+        if (v.day2 !== undefined) v.day2 = Math.min(31, Math.max(1, Math.round(v.day2)));
+        const body = Object.assign({}, it || {}, v, { kind });
+        delete body.id;
+        if (kind === "debt") { body.startBalance = Math.max(Number((it && it.startBalance) || 0), v.balance); body.inPlan = v.plan !== "no"; delete body.plan; }
+        const ref = it ? S.db.doc("items/" + it.id) : S.db.collection("items").doc();
+        enqueue(() => ref.set(body), "Saved");
+      },
+      onDelete: it ? () => enqueue(() => S.db.doc("items/" + it.id).delete(), "Deleted") : null,
+    });
+  }
+  $("btnAdd1").onclick = () => openSheet({
+    title: "What are you adding?", fields: [{ id: "k", label: "Type", type: "select", value: "bill", options: [{ value: "income", label: "Paycheck or money coming in" }, { value: "bill", label: "Bill or spending" }, { value: "debt", label: "Debt payment" }] }],
+    save: "Next", onSave: (v) => setTimeout(() => editItem(null, v.k), 0),
+  });
+  document.querySelectorAll("[data-add]").forEach((b) => { b.onclick = () => editItem(null, b.dataset.add); });
+  $("btnAddDebt").onclick = () => editItem(null, "debt");
+
+  $("btnBal").onclick = () => openSheet({
+    title: "What's in checking right now?", save: "Update",
+    fields: [{ id: "balance", label: "Checking balance", type: "number", allowNeg: true, value: S.settings && S.settings.balance != null ? S.settings.balance : "", hint: "Anything dated before today counts as already done. Everything from today on comes out of this number." }],
+    onSave: (v) => enqueue(() => S.db.doc("settings/main").set({ balance: v.balance, asOf: fromDays(TODAY) }), "Balance updated"),
+  });
+
+  function toggleMark(key) {
+    const [id, ds] = [key.slice(0, key.lastIndexOf("@")), key.slice(key.lastIndexOf("@") + 1)];
+    const it = S.items.find((x) => x.id === id); if (!it) return;
+    const mo = ds.slice(0, 7);
+    const was = !!(S.marks[mo] || {})[key];
+    const marks = Object.assign({}, S.marks[mo] || {});
+    if (was) delete marks[key]; else marks[key] = true;
+    const st = S.settings || { balance: 0, asOf: fromDays(TODAY) };
+    const delta = (was ? -1 : 1) * sign(it) * it.amount;
+    enqueue(async () => {
+      await S.db.doc("marks/" + mo).set({ done: marks });
+      await S.db.doc("settings/main").set({ balance: r2((Number(st.balance) || 0) + delta), asOf: st.asOf || fromDays(TODAY) });
+      if (it.kind === "debt") await S.db.doc("items/" + it.id).update({ balance: r2(Math.max(0, (Number(it.balance) || 0) + (was ? it.amount : -it.amount))) });
+    }, was ? "Unmarked" : it.kind === "income" ? "Paycheck received" : "Marked paid");
+  }
+
+  // ---------- on-device store (same calls the page already uses) ----------
+  function localDB() {
+    const KEY = "kais-budget-v1";
+    let mem = null;
+    const load = () => { if (mem) return mem; try { mem = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {} if (!mem || !mem.docs) mem = { docs: {} }; return mem; };
+    const save = () => { try { localStorage.setItem(KEY, JSON.stringify(mem)); } catch (e) { toast("Couldn't save on this phone. Storage may be full."); } };
+    const subs = [];
+    const clone = (o) => JSON.parse(JSON.stringify(o));
+    const snapDoc = (path) => { const d = load().docs[path]; const id = path.split("/").pop(); return { id, exists: !!d, data: () => (d ? clone(d) : undefined), metadata: { fromCache: false, hasPendingWrites: false } }; };
+    const snapCol = (col) => { const docs = Object.keys(load().docs).filter((p) => p.slice(0, p.lastIndexOf("/")) === col).sort().map(snapDoc); return { docs, size: docs.length, empty: !docs.length, docChanges: () => [], metadata: { fromCache: false, hasPendingWrites: false } }; };
+    const notify = () => setTimeout(() => subs.forEach((s) => s.fire()), 0);
+    const docRef = (path) => ({
+      id: path.split("/").pop(), path,
+      get: async () => snapDoc(path),
+      set: async (data) => { load().docs[path] = clone(data); save(); notify(); },
+      update: async (data) => { const cur = load().docs[path]; if (!cur) throw { code: "invalid_argument" }; Object.assign(cur, clone(data)); save(); notify(); },
+      delete: async () => { delete load().docs[path]; save(); notify(); },
+      onSnapshot: (next) => { const s = { fire: () => next(snapDoc(path)) }; subs.push(s); setTimeout(s.fire, 0); return () => { const i = subs.indexOf(s); if (i >= 0) subs.splice(i, 1); }; },
+    });
+    const colRef = (col) => ({
+      path: col,
+      doc: (id) => docRef(col + "/" + (id || Math.random().toString(36).slice(2, 12))),
+      onSnapshot: (next) => { const s = { fire: () => next(snapCol(col)) }; subs.push(s); setTimeout(s.fire, 0); return () => { const i = subs.indexOf(s); if (i >= 0) subs.splice(i, 1); }; },
+    });
+    return {
+      doc: docRef, collection: colRef,
+      isEmpty: () => Object.keys(load().docs).length === 0,
+      exportAll: () => clone(load()),
+      importAll: (data) => { mem = { docs: clone(data.docs) }; save(); notify(); },
+    };
+  }
+
+  function seed(db) {
+    db.importAll({ docs: { "settings/main": { balance: null, asOf: fromDays(TODAY) } } });
+  }
+
+  $("btnExport").onclick = () => {
+    const blob = new Blob([JSON.stringify(S.db.exportAll(), null, 2)], { type: "application/json" });
+    const file = new File([blob], "kais-budget-backup-" + fromDays(TODAY) + ".json", { type: "application/json" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: "Budget backup" }).catch(() => {}); return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  };
+  $("btnImport").onclick = () => $("fileImport").click();
+  $("fileImport").onchange = (e) => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try { const data = JSON.parse(r.result); if (!data || typeof data.docs !== "object") throw 0; S.db.importAll(data); toast("Backup restored"); }
+      catch (err) { toast("That file isn't a budget backup. Pick the .json file you saved from this app."); }
+      e.target.value = "";
+    };
+    r.readAsText(f);
+  };
+
+  if ("serviceWorker" in navigator) window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
+
+  // ---------- boot ----------
+  (async function boot() {
+    const db = localDB();
+    if (db.isEmpty()) seed(db);
+    S.db = db;
+    const fail = () => { $("status").hidden = false; $("status").textContent = "Lost the connection to your saved budget. Reload the page to try again."; };
+    db.doc("settings/main").onSnapshot((s) => { S.settings = s.exists ? s.data() : null; S.loaded.s = true; render(); }, fail);
+    db.collection("items").onSnapshot((q) => { S.items = q.docs.map((d) => Object.assign({}, d.data(), { id: d.id, amount: Number(d.data().amount) || 0 })); S.loaded.i = true; render(); }, fail);
+    db.collection("marks").onSnapshot((q) => { const m = {}; q.docs.forEach((d) => { m[d.id] = (d.data() || {}).done || {}; }); S.marks = m; S.loaded.m = true; render(); }, fail);
+  })();
+})();
+</script>
+
+</body>
+</html>
